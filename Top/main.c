@@ -137,7 +137,7 @@ PUBLIC int csoundCompileArgs(CSOUND *csound, int argc, const char **argv)
     if (csound->delayederrormessages) {
       if (O->msglevel>8)
         csound->Warning(csound, "%s", csound->delayederrormessages);
-      free(csound->delayederrormessages);
+      csound->Free(csound, csound->delayederrormessages);
       csound->delayederrormessages = NULL;
     }
 
@@ -530,7 +530,8 @@ PUBLIC int csoundCompileCsdText(CSOUND *csound, const char *csd_text)
     //csound->oparms->odebug = 1; /* *** SWITCH ON EXTRA DEBUGGING *** */
     int res = read_unified_file4(csound, corfile_create_r(csd_text));
     if (res) {
-      csound->csdname = strdup("*string*"); /* Mark asfrom text */
+      if(csound->csdname != NULL) csound->Free(csound, csound->csdname);
+      csound->csdname = cs_strdup(csound, "*string*"); /* Mark asfrom text */
       res = csoundCompileOrc(csound, NULL);
       if (res == CSOUND_SUCCESS){
         csoundLockMutex(csound->API_lock);
@@ -538,7 +539,7 @@ PUBLIC int csoundCompileCsdText(CSOUND *csound, const char *csd_text)
         if ((csound->engineStatus & CS_STATE_COMP) != 0) {
           csoundInputMessageInternal(csound, (const char *) sc);
         }
-        //free(sc);
+        csound->Free(csound, sc);
         csoundUnlockMutex(csound->API_lock);
       }
     }
