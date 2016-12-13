@@ -25,8 +25,14 @@ set(BUILD_PD_CLASS OFF)
 #list(APPEND CMAKE_SYSTEM_LIBRARY_PATH
 #  "c:/Program Files/Mega-Nerd/libsndfile/lib")
 
+
+list(APPEND CMAKE_SYSTEM_INCLUDE_PATH 
+  "${CMAKE_CURRENT_BINARY_DIR}/../deps/include")
 list(APPEND CMAKE_SYSTEM_LIBRARY_PATH
-    "c:/Python25/libs")
-list(APPEND CMAKE_SYSTEM_INCLUDE_PATH
-    "c:/Python25/include")
+  "${CMAKE_CURRENT_BINARY_DIR}/../deps/lib")
+
+#list(APPEND CMAKE_SYSTEM_LIBRARY_PATH
+#    "c:/Python25/libs")
+#list(APPEND CMAKE_SYSTEM_INCLUDE_PATH
+#    "c:/Python25/include")
 
