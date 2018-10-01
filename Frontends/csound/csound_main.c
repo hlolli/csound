@@ -24,6 +24,7 @@
 /* Console Csound using the Csound API. */
 #include "csound.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <string.h>
