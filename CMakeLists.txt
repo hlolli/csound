@@ -897,6 +897,7 @@ set(stdopcod_SRCS
     Opcodes/gab/gab.c
     Opcodes/gab/vectorial.c
     Opcodes/grain.c
+    Opcodes/halfphysler.c
     Opcodes/locsig.c
     Opcodes/lowpassr.c
     Opcodes/metro.c
@@ -1182,7 +1183,7 @@ function(make_plugin libname srcs)
         ARCHIVE_OUTPUT_DIRECTORY ${BUILD_PLUGINS_DIR})
 
     install(TARGETS ${libname}
-        LIBRARY DESTINATION "${PLUGIN_INSTALL_DIR}" 
+        LIBRARY DESTINATION "${PLUGIN_INSTALL_DIR}"
         ARCHIVE DESTINATION "${PLUGIN_INSTALL_DIR}" )
 
 endfunction(make_plugin)

@@ -291,6 +291,7 @@
 ./Opcodes/grain.h
 ./Opcodes/grain4.c
 ./Opcodes/grain4.h
+./Opcodes/halfphysler.c
 ./Opcodes/harmon.c
 ./Opcodes/hdf5/HDF5IO.c
 ./Opcodes/hdf5/HDF5IO.h
