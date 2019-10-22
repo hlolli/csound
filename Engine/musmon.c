@@ -553,7 +553,11 @@ PUBLIC int csoundCleanup(CSOUND *csound)
       cs_beep(csound);
 
     csoundUnlockMutex(csound->API_lock);
-    return dispexit(csound);    /* hold or terminate the display output     */
+    if (csound->csoundDrawGraphCallback_) {
+      return dispexit(csound);    /* hold or terminate the display output     */
+    } else {
+      return csound->perferrcnt == 0 ? 0 : -1;
+    }
 }
 
 int lplay(CSOUND *csound, EVLIST *a)    /* cscore re-entry into musmon */
