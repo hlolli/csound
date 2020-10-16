@@ -279,15 +279,25 @@ char* get_arg_type2(CSOUND* csound, TREE* tree, TYPE_TABLE* typeTable)
     TREE* nodeToCheck = tree;
 
     if (tree->type == T_ARRAY) {
+      /* print_tree(csound, "i()", tree->left); */
+      /* printf("lexme! %s\n", tree->left->value->lexeme); */
       varBaseName = tree->left->value->lexeme;
 
       var = find_var_from_pools(csound, varBaseName, varBaseName, typeTable);
 
       if (var == NULL) {
-        synterr(csound,
-                Str("unable to find array operator for var %s line %d\n"), varBaseName, tree->line);
-        do_baktrace(csound, tree->locn);
-        return NULL;
+        char *fnReturn;
+        /* fnReturn = get_arg_type2(csound, tree->left, typeTable); */
+        if (tree->left->type == T_FUNCTION &&
+            (fnReturn = get_arg_type2(csound, tree->left, typeTable)) &&
+            *fnReturn == '[') {
+          return cs_strdup(csound, &fnReturn[1]);
+        } else {
+          synterr(csound,
+                  Str("unable to find array operator for var %s line %d\n"), varBaseName, tree->line);
+          do_baktrace(csound, tree->locn);
+          return NULL;
+        }
       } else {
         if (var->varType == &CS_VAR_TYPE_ARRAY) {
           return cs_strdup(csound, var->subType->varTypeName);
@@ -1659,7 +1669,7 @@ TREE* convert_statement_to_opcall(CSOUND* csound, TREE* root, TYPE_TABLE* typeTa
 
     return root;
   }
-  
+
   // If a function call made it here, such as:
   //  print(1,2,3)
   // then it should just be updated to T_OPCALL and returned
@@ -2734,13 +2744,13 @@ TREE* make_opcall_from_func_start(CSOUND *csound, int line, int locn, int type,
   TREE* firstArg = left->right;
   TREE* first = right;
   TREE* rest = right->next;
-  
+
   right->next = NULL;
-  
+
   TREE* operatorNode = make_node(csound, line, locn, type, firstArg, first);
   operatorNode->next = rest;
   left->right = operatorNode;
-  
+
   return left;
 }
 
