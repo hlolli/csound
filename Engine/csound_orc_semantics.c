@@ -279,15 +279,12 @@ char* get_arg_type2(CSOUND* csound, TREE* tree, TYPE_TABLE* typeTable)
     TREE* nodeToCheck = tree;
 
     if (tree->type == T_ARRAY) {
-      /* print_tree(csound, "i()", tree->left); */
-      /* printf("lexme! %s\n", tree->left->value->lexeme); */
       varBaseName = tree->left->value->lexeme;
 
       var = find_var_from_pools(csound, varBaseName, varBaseName, typeTable);
 
       if (var == NULL) {
         char *fnReturn;
-        /* fnReturn = get_arg_type2(csound, tree->left, typeTable); */
         if (tree->left->type == T_FUNCTION &&
             (fnReturn = get_arg_type2(csound, tree->left, typeTable)) &&
             *fnReturn == '[') {
