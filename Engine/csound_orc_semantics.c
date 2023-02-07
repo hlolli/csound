@@ -2484,6 +2484,11 @@ TREE* verify_tree(CSOUND * csound, TREE *root, TYPE_TABLE* typeTable)
         }
       }
 
+      // TREE* x = copy_node(csound, current);
+      // x->next = NULL;
+      // print_tree(csound, "CURRENT\n", x);
+      // csound->Free(csound, x);
+
       if(!verify_opcode_2(csound, current, typeTable)) {
         return 0;
       }
