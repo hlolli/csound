@@ -1453,7 +1453,7 @@ static int32_t krandomi(CSOUND *csound, RANDOMI *p)
     *p->ar = (p->num1 + (MYFLT)p->phs * p->dfdmax) * (*p->max - *p->min) + *p->min;
     RANDOM_PHASE_INCREMENT(inc, *p->xcps, CS_KICVT);
     p->phs += inc;
-    if (p->phs >= MAXLEN) {
+    if (p->phs > PHMASK) {
       p->phs   &= PHMASK;
       p->num1   = p->num2;
       p->num2   = randGab(csound);
@@ -1489,7 +1489,7 @@ static int32_t randomi(CSOUND *csound, RANDOMI *p)
         RANDOM_PHASE_INCREMENT(inc, *cpsp++, CS_SICVT);
       ar[n] = (p->num1 + (MYFLT)phs * p->dfdmax) * amp + min;
       phs += inc;
-      if (phs >= MAXLEN) {
+      if (phs > PHMASK) {
         phs &= PHMASK;
         p->num1 = p->num2;
         p->num2 = randGab(csound);
@@ -1528,7 +1528,7 @@ static int32_t krandomh(CSOUND *csound, RANDOMH *p)
     *p->ar = p->num1 * (*p->max - *p->min) + *p->min;
     RANDOM_PHASE_INCREMENT(inc, *p->xcps, CS_KICVT);
     p->phs += inc;
-    if (p->phs >= MAXLEN) {
+    if (p->phs > PHMASK) {
       p->phs &= PHMASK;
       p->num1 = randGab(csound);
     }
@@ -1562,7 +1562,7 @@ static int32_t randomh(CSOUND *csound, RANDOMH *p)
         RANDOM_PHASE_INCREMENT(inc, *cpsp++, CS_SICVT);
       ar[n]     = p->num1 * amp + min;
       phs      += inc;
-      if (phs >= MAXLEN) {
+      if (phs > PHMASK) {
         phs    &= PHMASK;
         p->num1 = randGab(csound);
       }
