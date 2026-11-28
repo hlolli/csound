@@ -5032,7 +5032,7 @@ void csound_orcerror(PARSE_PARM *pp, void *yyscanner,
                      CSOUND *csound, TREE **astTree, const char *str)
 {
 
-  IGN(pp);
+  pp->ternary_count = 0;
   IGN(astTree);
   int previous_char = csound_orcget_previous_char(yyscanner);
   int32_t line = csound_orcget_lineno(yyscanner);

@@ -273,6 +273,8 @@ static TREE *parse_orc(CSOUND *csound, PARSE_PARM *pp)
       csound_orc_scan_buffer(corfile_body(csound->expanded_orc),
                              corfile_tell(csound->expanded_orc), pp->yyscanner);
       err = csound_orcparse(pp, pp->yyscanner, csound, &astTree);
+      csound->Free(csound, pp->ternary_depths);
+      pp->ternary_depths = NULL;
       corfile_rm(csound, &csound->expanded_orc);
 #ifdef PARCS
       if (UNLIKELY(csoundGetDebug(csound) > 99)) csp_orc_sa_print_list(csound);
@@ -519,6 +521,7 @@ TREE *csoundParseOrc(CSOUND *csound, const char *str)
       if (state->parser.yyscanner != NULL)
         csound_orclex_destroy(state->parser.yyscanner);
       free(state->parser.xstrbuff);
+      csound->Free(csound, state->parser.ternary_depths);
       corfile_rm(csound, &csound->expanded_orc);
       /* A live compiler still needs these allocations until validation ends.
          Standalone ParseOrc callers keep the usual tree ownership contract. */

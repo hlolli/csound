@@ -69,6 +69,10 @@ typedef struct parse_parm_s {
     uint32_t        last_column;  
     int             previous_char;
     uint32_t        paren_depth;  /* suppress newlines inside parentheses */
+    uint32_t        bracket_depth;
+    /* Expression depth of each '?' still waiting for its ':'. */
+    uint32_t        *ternary_depths;
+    size_t          ternary_count, ternary_capacity;
     int             xsubstr;    /* count for substr */
 } PARSE_PARM;
 

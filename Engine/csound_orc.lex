@@ -56,6 +56,35 @@ YYLTYPE *yylloc_param;
 
 #define YY_EXTRA_TYPE  PARSE_PARM *
 #define PARM    yyget_extra(yyscanner)
+#define EXPR_DEPTH(p) ((p)->paren_depth + (p)->bracket_depth)
+
+static int32_t push_ternary(CSOUND *csound, PARSE_PARM *p)
+{
+    if (p->ternary_count == p->ternary_capacity) {
+        size_t capacity = p->ternary_capacity ? 2 * p->ternary_capacity : 8;
+        uint32_t *depths = csound->ReAlloc(csound, p->ternary_depths,
+                                          capacity * sizeof(*depths));
+        if (UNLIKELY(depths == NULL))
+            return ERROR_TOKEN;
+        p->ternary_depths = depths;
+        p->ternary_capacity = capacity;
+    }
+    p->ternary_depths[p->ternary_count++] = EXPR_DEPTH(p);
+    return '?';
+}
+
+static int32_t ternary_needs_colon(const PARSE_PARM *p)
+{
+    return p->ternary_count != 0 &&
+           p->ternary_depths[p->ternary_count - 1] == EXPR_DEPTH(p);
+}
+
+static void discard_closed_ternaries(PARSE_PARM *p)
+{
+    while (p->ternary_count != 0 &&
+           p->ternary_depths[p->ternary_count - 1] > EXPR_DEPTH(p))
+        p->ternary_count--;
+}
 
 #define YY_USER_ACTION \
   PARM->first_column = yycolumn; \
@@ -96,7 +125,7 @@ FILE            ^[ \t]*"#source"
 FNAME           [a-zA-Z0-9/:.+-_]+
 LPAREN          "("
 RPAREN          ")"
-SYMBOL          [\[\]+\-*/%\^\?:.,!]
+SYMBOL          [+\-*/%\^.,!]
 RSTR            "R{"
 ERSTR           "}R"
 
@@ -110,6 +139,7 @@ ERSTR           "}R"
 %x udodef
 %x udoarg
 %x forloop
+%s compact_ternary
 
 %%
 <*>"\r"            { } /* EATUP THIS PART OF WINDOWS NEWLINE */
@@ -563,10 +593,18 @@ ERSTR           "}R"
                   *opening = '\0';
                   *lvalp = lookup_token(csound, yytext, yyscanner);
                   return (*lvalp)->type+1; }
-{TYPED_IDENTIFIER} { *lvalp = lookup_token(csound, yytext, yyscanner);
-                  /* csound->Message(csound,"%s -> %d\n",
-                                     yytext, (*lvalp)->type); */
-                  return (*lvalp)->type; }
+<INITIAL>{TYPED_IDENTIFIER} {
+                  if (ternary_needs_colon(PARM)) {
+                      /* Re-scan the left name with the normal lexer rules
+                         but without combining it with the colon and right name. */
+                      yycolumn = PARM->first_column;
+                      yyless(0);
+                      BEGIN(compact_ternary);
+                  } else {
+                      *lvalp = lookup_token(csound, yytext, yyscanner);
+                      return (*lvalp)->type;
+                  }
+                }
 {TYPED_IDENTIFIERB} { PARM->paren_depth++;
                       if (UNLIKELY(strchr(yytext, '\n'))) {
                            yycolumn = 1;
@@ -589,7 +627,23 @@ ERSTR           "}R"
 
 {RPAREN}     { if (PARM->paren_depth > 0)
                  PARM->paren_depth--;
+               discard_closed_ternaries(PARM);
                return *yytext; }
+
+"["           { PARM->bracket_depth++;
+                return '['; }
+
+"]"           { if (PARM->bracket_depth > 0)
+                  PARM->bracket_depth--;
+                discard_closed_ternaries(PARM);
+                return ']'; }
+
+"?"           { return push_ternary(csound, PARM); }
+
+":"           { if (ternary_needs_colon(PARM))
+                  PARM->ternary_count--;
+                BEGIN(INITIAL);
+                return ':'; }
 
 {SYMBOL}     { return *yytext;}
 
