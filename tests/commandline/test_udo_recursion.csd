@@ -1,50 +1,41 @@
 <CsTest>
-description = "test for UDO recursion depth exception"
-skip = "Known defect: recursive UDO exits by signal instead of reporting a recursion limit; the old runner counted the crash as a pass."
+description = "UDO recursion reports the depth limit and unwinds for the next call"
 
 [expect]
 exit = "nonzero"
-stderr_regex = ["(?i)recurs(?:ion|ive).*(?:depth|limit)"]
+stderr = ["UDO CountFrames max recursion depth 8 reached", "1 errors in performance"]
+output = ["CountFrames returned 8 after the rejected call"]
 </CsTest>
 <CsoundSynthesizer>
 <CsOptions>
--n
+-n --recursion-depth=8
 </CsOptions>
 <CsInstruments>
-0dbfs=1
-
-opcode Crashy():i
-  ikeepGoing = 1
-  while (ikeepGoing == 1) do
-    if (ikeepGoing == 1) then
-      xout -1
-    endif
-    ivalue = Crashy()
-  od
-  xout 0
-endop
-
-opcode RecurseOK(cnt:i):i
-  cnt += 1
-  while (cnt < 10) do
-    print cnt
-    xout RecurseOK(cnt)
-  od
-    xout 0
+opcode CountFrames(depth:i):i
+  iFrames = 1
+  if depth > 1 then
+    iFrames += CountFrames(depth - 1)
+  endif
+  xout iFrames
 endop
 
 instr 1
-  ivalue = Crashy()
+  iFrames = CountFrames(9)
 endin
 
 instr 2
-  ret:i = RecurseOK(0)
-  prints "carried on"
+  ; A leaked recursion count from the first call would reject this one.
+  iFrames = CountFrames(8)
+  if iFrames != 8 then
+    prints "Expected 8 recursive frames, got %d\n", iFrames
+    exitnow 1
+  endif
+  prints "CountFrames returned 8 after the rejected call\n"
 endin
-
 </CsInstruments>
 <CsScore>
-i1 0 1
-i2 0 1
+i 1 0 .01
+i 2 .02 .01
+e
 </CsScore>
 </CsoundSynthesizer>
