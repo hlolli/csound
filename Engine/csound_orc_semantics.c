@@ -3177,6 +3177,66 @@ static TREE* convert_unary_op_to_binary(CSOUND* csound, TREE* new_left, TREE* un
   return retVal;
 }
 
+char LEGACY_OPCODE_COMMA;
+
+TREE* make_legacy_no_output_call(CSOUND *csound, TREE *opcode, TREE *suffix)
+{
+  if (opcode->type != T_IDENT) {
+    synterr(csound, Str("Expected an opcode name before the comma, line %d\n"),
+            opcode->line);
+    goto invalid;
+  }
+  for (TREE *arg = opcode->next; arg != NULL; arg = arg->next) {
+    if (arg->type != T_IDENT && arg->type != STRUCT_EXPR &&
+        arg->type != T_ARRAY) {
+      synterr(csound, Str("Expected an input argument after the comma, line %d\n"),
+              arg->line);
+      goto invalid;
+    }
+  }
+  opcode->type = T_OPCALL;
+  opcode->right = tree_append(opcode->next, suffix);
+  opcode->next = NULL;
+  return opcode;
+
+invalid:
+  csoundDeleteTree(csound, opcode);
+  csoundDeleteTree(csound, suffix);
+  return NULL;
+}
+
+static int32_t can_use_legacy_output_call(CSOUND *csound, const TREE *outputs,
+                                          const TREE *opcode)
+{
+  /* The grammar marks only bare identifiers followed by a separator. */
+  if (csound->init_pass_threadlock)
+    csoundLockMutex(csound->init_pass_threadlock);
+  int32_t known = find_opcode(csound, opcode->value->lexeme) != NULL;
+  if (csound->init_pass_threadlock)
+    csoundUnlockMutex(csound->init_pass_threadlock);
+  if (!known)
+    return 0;
+
+  /* Multiple outputs cannot represent a Csound 7 no-output call. */
+  if (outputs->next != NULL || outputs->value == NULL)
+    return 1;
+
+  /* If the first name accepts zero outputs, leave it to normal resolution.
+     Checking output signatures here avoids verifying either call twice. */
+  OENTRIES *entries = find_opcode2(csound, outputs->value->lexeme);
+  if (entries == NULL)
+    return 1;
+  int32_t can_call_without_outputs = 0;
+  for (int32_t i = 0; i < entries->count; i++) {
+    if (check_out_args(csound, NULL, entries->entries[i]->outypes)) {
+      can_call_without_outputs = 1;
+      break;
+    }
+  }
+  csound->Free(csound, entries);
+  return !can_call_without_outputs;
+}
+
 /* Analyze and restructures the statement node into an opcode call structure.
  * This function will reform the tree such that the top node will contain the
  * name of an opcode, the ->left will hold out-args, and ->right will hold
@@ -3331,6 +3391,17 @@ TREE* convert_statement_to_opcall(CSOUND* csound, TREE* root,
   /* Now need to disambiguate the rule : out_arg_list expr_list NEWLINE */
   leftCount = tree_arg_list_count(root->left);
   rightCount = tree_arg_list_count(root->right);
+
+  if (root->markup == &LEGACY_OPCODE_COMMA &&
+      can_use_legacy_output_call(csound, root->left, root->right)) {
+    TREE *opcode = root->right;
+    opcode->type = T_OPCALL;
+    opcode->left = root->left;
+    opcode->right = opcode->next;
+    opcode->next = root->next;
+    root->next = NULL;
+    return opcode;
+  }
 
   if (leftCount > 1 && rightCount > 1) {
     synterr(csound,

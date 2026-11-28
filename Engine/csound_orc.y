@@ -184,7 +184,9 @@
     extern int csound_orcget_lineno(void *);
     extern ORCTOKEN *make_string(CSOUND *, char *);
     extern char* UNARY_PLUS;
+    extern char LEGACY_OPCODE_COMMA;
     extern TREE* make_opcall_from_func_start(CSOUND*, int32_t, uint64_t, int32_t, TREE*, TREE*);
+    extern TREE* make_legacy_no_output_call(CSOUND*, TREE*, TREE*);
     extern void add_instr_variable(CSOUND *csound,  TREE *x);
 %}
 %%
@@ -379,6 +381,11 @@ opcall  : identifier NEWLINE
             $$->left = $1;
             /*$$->right = $2; */
           }
+        | out_arg_list identifier ',' optnewline expr_list NEWLINE
+          { $$ = make_node(csound, LINE, LOCN, T_OPCALL, $1,
+                           parser_append(csound, $2, $5));
+            $$->markup = &LEGACY_OPCODE_COMMA;
+          }
         | out_arg_list identifier expr_list NEWLINE
           { $$ = make_leaf(csound, LINE,LOCN, T_OPCALL, NULL);
             $$->left = $2;
@@ -407,6 +414,11 @@ opcall  : identifier NEWLINE
           { $$ = make_leaf(csound, LINE,LOCN, T_OPCALL, NULL);
             $$->left = $1;
             /*$$->right = $2; */
+          }
+        | out_arg_list_array identifier ',' optnewline expr_list NEWLINE
+          { $$ = make_node(csound, LINE, LOCN, T_OPCALL, $1,
+                           parser_append(csound, $2, $5));
+            $$->markup = &LEGACY_OPCODE_COMMA;
           }
         | out_arg_list_array identifier expr_list NEWLINE
           { $$ = make_leaf(csound, LINE,LOCN, T_OPCALL, NULL);
@@ -447,7 +459,33 @@ opcall  : identifier NEWLINE
           { $$ = make_opcall_from_func_start(csound, LINE, LOCN, '&', $1, $3); }
         | function_call '#' expr_list NEWLINE
           { $$ = make_opcall_from_func_start(csound, LINE, LOCN, '#', $1, $3); }
+        | legacy_no_output_call
+          { if ($1 == NULL) YYABORT;
+            $$ = $1; }
         ;
+
+legacy_no_output_call : multi_out_arg_list NEWLINE
+                        { $$ = make_legacy_no_output_call(csound, $1, NULL); }
+                      | legacy_initial_comma optnewline expr_list NEWLINE
+                        { $$ = make_legacy_no_output_call(csound, $1, $3); }
+                      | out_arg_list ',' legacy_first_arg legacy_arg_tail NEWLINE
+                        { $$ = make_legacy_no_output_call(
+                              csound, $1, parser_append(csound, $3, $4)); }
+                      ;
+
+/* Prefer shifting a possible output after the comma. Use the legacy
+   reading when the comma list ends or the next input cannot be an output. */
+legacy_initial_comma : out_arg_list ','
+                     { $$ = $1; }
+                     ;
+
+legacy_first_arg : function_call
+                 | array_expr
+                 ;
+
+legacy_arg_tail : ',' optnewline expr_list { $$ = $3; }
+                | /* empty */ { $$ = NULL; }
+                ;
 
 function_call : typed_identifierb expr_list ')'
               { $$ = $1;
@@ -954,10 +992,13 @@ binary_expr : expr '+' optnewline expr   { $$ = make_node(csound, LINE,LOCN, '+'
           ;
 
 
-out_arg_list : out_arg_list ',' out_arg
-              { $$ = parser_append(csound, $1, $3); }
+out_arg_list : multi_out_arg_list
              | out_arg
              ;
+
+multi_out_arg_list : out_arg_list ',' out_arg
+                   { $$ = parser_append(csound, $1, $3); }
+                   ;
 
 out_arg : identifier
         | typed_identifier
