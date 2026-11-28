@@ -2293,6 +2293,7 @@ int32_t useropcdset(CSOUND *csound, UOPCODE *p)
     /* store parameters of input and output channels, and parent ip */
     buf->uopcode_struct = (void*) p;
     buf->parent_ip = p->parent_ip = parent_ip;
+    buf->init_parent_ip = NULL;
   } else {
     /* copy parameters from the caller instrument into our subinstrument */
     lcurip = p->ip;
@@ -2422,6 +2423,8 @@ int32_t useropcdset(CSOUND *csound, UOPCODE *p)
   buf->iflag = 0;
   err = 0;
   int32_t rate_prepared = rate_op != NULL;
+  /* Only the synchronous UDO body init can borrow from its caller. */
+  buf->init_parent_ip = parent_ip;
   while (csound->ids != NULL && err == 0) {
     if (init_jump_pending(csound)) {
       err = NOTOK;
@@ -2435,6 +2438,7 @@ int32_t useropcdset(CSOUND *csound, UOPCODE *p)
     csound->ids = csound->ids->nxti;
   }
  finish_init:
+  buf->init_parent_ip = NULL;
   if (landed)
     init_landing_pop(&landing);
   // following init pass, decrement recursion depth count

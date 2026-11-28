@@ -71,6 +71,7 @@ typedef struct DELAYR {
         uint32_t npts;
         AUXCH   auxch;
         struct DELAYR  *next_delayr; /* fifo for delayr pointers by Jens Groh */
+        uint64_t init_pass;
 } DELAYR;
 
 typedef struct {

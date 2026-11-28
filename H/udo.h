@@ -10,6 +10,7 @@ typedef struct {
     OPCODINFO *opcode_info;
     void    *uopcode_struct;
     INSDS   *parent_ip;
+    INSDS   *init_parent_ip;
     int32   iflag;
     cs_float  **inargs;
     cs_float   *iobufp_ptrs[12];  /* expandable IV - Oct 26 2002 */ /* was 8 */

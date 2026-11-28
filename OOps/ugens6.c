@@ -22,6 +22,7 @@
 */
 
 #include "csoundCore.h" /*                              UGENS6.C        */
+#include "udo.h"
 #include "ugens6.h"
 #include <math.h>
 
@@ -310,7 +311,7 @@ typedef struct {
 
 /* This queue contains readers still waiting for a delayw in this instance.
    Taps and writers cache their resolved reader for performance. */
-static DELAY_PAIRING *delay_pairing(CSOUND *csound, INSDS *owner)
+static DELAY_PAIRING *delay_pairing(CSOUND *csound, const INSDS *owner)
 {
     return (DELAY_PAIRING *)csound->QueryInstanceVariable(
         csound, owner, DELAY_PAIRING_INSTANCE);
@@ -384,6 +385,7 @@ int32_t delrset(CSOUND *csound, DELAYR *p)
     pairing->last = p;
     pairing->depth++;
     p->next_delayr = NULL;
+    p->init_pass = p->h.insdshead->init_pass;
     if (p->OUTOCOUNT > 1)
       *(p->indx) = (cs_float)-pairing->depth;
     return OK;
@@ -405,13 +407,46 @@ int32_t delwset(CSOUND *csound, DELAYW *p)
     return OK;
 }
 
-static DELAYR *delayr_find(CSOUND *csound, INSDS *owner, const cs_float *ndx)
+static DELAYR *caller_delayr(CSOUND *csound, const INSDS *owner)
+{
+    while (owner->opcod_iobufs != NULL) {
+      const OPCOD_IOBUFS *io = (const OPCOD_IOBUFS *) owner->opcod_iobufs;
+      const INSDS *caller = io->init_parent_ip;
+      if (caller == NULL || caller->ksmps != owner->ksmps ||
+          caller->esr != owner->esr)
+        break;
+
+      /* A local reader owns this scope even if an init jump skipped it. */
+      for (const OPDS *op = owner->nxtd; op != NULL; op = op->nxtd)
+        if (op->deinit == (SUBR) delrdeinit)
+          return NULL;
+
+      DELAY_PAIRING *pairing = delay_pairing(csound, caller);
+      if (pairing != NULL) {
+        DELAYR *reader = pairing->first;
+        if (reader != NULL && pairing->depth == 1 &&
+            reader->init_pass == caller->init_pass)
+          return reader;
+        break;
+      }
+      owner = caller;
+    }
+    return NULL;
+}
+
+static DELAYR *delayr_find(CSOUND *csound, const INSDS *owner,
+                          const cs_float *ndx, int32_t allow_caller)
 {
     DELAY_PAIRING *pairing = delay_pairing(csound, owner);
     DELAYR *d = pairing != NULL ? pairing->first : NULL;
     int32_t     n = (int32_t)CS_FLOAT2LRND(*ndx);
 
     if (UNLIKELY(d == NULL)) {
+      if (allow_caller && n == 0 && pairing == NULL) {
+        d = caller_delayr(csound, owner);
+        if (d != NULL)
+          return d;
+      }
       csound->InitError(csound, Str("deltap: associated delayr not found\n"));
       return NULL;
     }
@@ -435,8 +470,12 @@ static DELAYR *delayr_find(CSOUND *csound, INSDS *owner, const cs_float *ndx)
 
 int32_t tapset(CSOUND *csound, DELTAP *p)
 {
-    p->delayr = delayr_find(csound, p->h.insdshead, p->indx);
-    return (p->delayr != NULL ? OK : NOTOK);
+    DELAYR *reader = delayr_find(csound, p->h.insdshead, p->indx, 1);
+    /* A failed reinit can leave the previous tap running. */
+    if (UNLIKELY(reader == NULL))
+      return NOTOK;
+    p->delayr = reader;
+    return OK;
 }
 
 int32_t delay(CSOUND *csound, DELAY *p)
@@ -765,7 +804,7 @@ int32_t deltap3(CSOUND *csound, DELTAP *p)
 
 int32_t tapxset(CSOUND *csound, DELTAPX *p)
 {
-    p->delayr = delayr_find(csound, p->h.insdshead, p->indx);
+    p->delayr = delayr_find(csound, p->h.insdshead, p->indx, 0);
     if (UNLIKELY(p->delayr == NULL))
       return NOTOK;
     p->wsize = (int32_t)(*(p->iwsize) + FL(0.5));          /* window size */
